@@ -1,0 +1,333 @@
+<!-- <html>
+<head>
+    <title>Home</title>
+    <script src="bundle.min.js"></script>
+    <script src="dropzone.min.js"></script>
+    <script src="sync.min.js"></script>
+    <script src="node_modules/xlsx/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.7.1/min/dropzone.min.css">
+
+</head> -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <!-- Bootstrap JS -->
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+	<!-- Popper JS -->
+	<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
+
+	<!-- Boostrap icons -->
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+	<!-- jQuery -->
+	<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <!-- <script src="https://cdn.jsdelivr.net/npm/dropzone@6.0.0-beta.2/dist/dropzone-min.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dropzone@6.0.0-beta.2/dist/dropzone.min.css"> -->
+
+    <!-- <script src="bundle.min.js"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.7.1/min/dropzone.min.js"></script>
+    <script src="xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.7.1/min/dropzone.min.css">
+	<style>
+		.disabled{
+			pointer-events: none;
+		}
+        .col-md-8 {
+            font-family: Roboto, "Open Sans", sans-serif;
+            font-size: 20px;
+            font-weight: 300;
+            text-rendering: optimizeLegibility;
+        }
+        .card {
+            box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+        }
+
+        .card:hover {
+            box-shadow: 0 16px 32px 0 rgba(0,0,0,0.2);
+            transform: scale(1.02);
+        }
+        .dropzone {
+            border: none !important;
+            background-image: linear-gradient(135deg,rgba(0,0,0,.03)25%, transparent 25%, transparent 50%, rgba(0,0,0,.03)50%, rgba(0,0,0,.03)75%, transparent 75%, transparent);
+            background-color: #FAFCFD;
+            background-size: 16px 16px;
+            font-family: Roboto, "Open Sans", sans-serif;
+            font-size: 20px;
+            font-weight: 300;
+            text-rendering: optimizeLegibility;
+        }
+	</style>
+  </head>
+<body>
+    
+    <div class="row justify-content-md-center p-3">
+        <div class="col-md-8 text-center">
+            <img src="logo.png" width="500" alt="">
+        </div>
+    </div>
+    <div class="row justify-content-md-center p-3">
+        <div class="col-md-6 text-center">
+            This is a webservice that ingests TED data from different sources and processes it to generate a combined dataset. Just drop the files below and click submit.
+        </div>
+    </div>
+    <div class="row text-center justify-content-md-center pt-3">
+        <div class="col-md-8">
+            <div class="card border-0">
+                <div class="card-body">
+                    <div>
+                        <!-- <form action="/target" class="dropzone" id="json-drop" style="width:20%; height:20%;"></form> -->
+                        <form 
+                            action='/target' 
+                            class="dropzone dz-clickable" 
+                            id="dropper" enctype="multipart/form-data">
+                        </form>
+                    </div>
+                    <div class="p-3">
+
+
+                        <button id="submit" class="btn btn-outline-dark" type="submit">Submit</button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        data = []
+        
+        check_staff_bookings = function(df){
+            if (
+                df.$columns.includes('Username') && 
+                df.$columns.includes('Firstname') && 
+                df.$columns.includes('Surname')
+            ){
+                return true
+            } else {
+                return false
+            }
+        }
+
+        parse_staff_bookings = function(df) {
+            for (let i = 0; i < df.shape[0]; i++) {
+                let row = {};
+                row.username = df.iloc({rows: [i]})["Username"].values[0];
+                row.name = df.iloc({rows: [i]})["Firstname"].values[0] + " " + df.iloc({rows: [i]})["Surname"].values[0];
+                row.completion_date = df.iloc({rows: [i]})["Session End"].values[0];
+                row.course_name = df.iloc({rows: [i]})["Title"].values[0];
+                data.push(row);
+            }
+        }
+        
+        check_progress_sheet = function(event){
+            if (event.target.result.startsWith(',Email') ){
+                return true
+            } else {
+                return false
+            }
+        }
+
+        parse_progress_sheet = function(text) {
+            rows = text.split('\n')
+            header = rows[0].split(',')
+            // add column to header
+            header.push("dummy")
+
+            header[0] = "Name" 
+            rows = rows.slice(1)
+            
+            for (let i = 0; i < rows.length; i++) {
+                if (rows[i]==['']){
+                    continue
+                }
+                for (let j=2; j<header.length; j+=2){
+                    d = rows[i].split(',')
+                    d.forEach( element => {
+                        element = element.replace(/(\r\n|\n|\r)/gm,"");
+                    });
+
+                    
+                    if (d[j]=='Completed'){
+                        let row = {};
+
+                        row.username = null;
+                        row.name = d[0].replace(/(\r\n|\n|\r)/gm,"");
+                        row.completion_date = d[j+1].replace(/(\r\n|\n|\r)/gm,"");
+                        row.course_name = header[j].replace(/(\r\n|\n|\r)/gm,"");
+                        
+                        data.push(row);
+                    }
+                }
+            }
+        }
+
+        parse_hta = function(rows){
+            for (let i = 0; i < rows.length; i++) {
+                console.log(i)
+                d = rows[i]
+                let row = {};
+                row.username = d["Email"].split('@')[0];
+                row.name = d["Name"];
+                row.completion_date = d["Please confirm the date you completed the online Human Tissue module?"];
+                row.course_name = "Human Tissue Act training"
+                data.push(row);
+            }
+        }
+
+        parse_gcp = function(rows){
+            for (let i = 0; i < rows.length; i++) {
+                d = rows[i]
+                console.log(d)
+                let row = {};
+                row.username = d["Email"].split('@')[0];
+                row.name = d["Name"];
+                row.completion_date = d["Please confirm the date you completed the course?"];
+                row.course_name = "Good clinical practice"
+                data.push(row);
+            }
+        }
+
+        parse_grades = function(rows){
+            console.log(rows)
+            cols = Object.keys(rows[0])
+            for (let i = 0; i < rows.length; i++) {
+                d = rows[i]
+                console.log(d)
+                username = d['ID number']
+                name = d['First name'] + " " + d['Surname']
+                for (let j = 6; j < cols.length-1; j++) {
+                    c = cols[j]
+                    var val = d[c]
+                    if (val=='-'){
+                        continue
+                    }
+                    let row = {};
+                    row.username = username;
+                    row.name = name
+                    row.completion_date = null;
+                    row.course_name = cols[j]
+                    data.push(row);
+                }
+            }
+        }
+
+        parse_student_bookings = function(rows){
+            for (let i = 0; i < rows.length; i++) {
+                let row = {};
+                d = rows[i]
+                row.username = d["Username"].split('@')[0];
+                row.name = d["Firstname"] + " " + d["Surname"];
+                row.completion_date = d["Session End"];
+                row.course_name = d["Title"];
+                data.push(row);
+            }
+        }
+
+        Dropzone.options.dropper = { // camelized version of the `id`
+            paramName: "file", // The name that will be used to transfer the file
+            maxFilesize: 100, // MB
+            autoProcessQueue: false,
+            accept: function(file, done) {
+                console.log(file)
+                var reader = new FileReader();
+                var dz = this;
+                reader.addEventListener("loadend", function(event) {
+                    file.status = Dropzone.SUCCESS;
+                    dz.emit("success", file);
+                    dz.emit("complete", file);
+                });
+
+
+                
+                reader.addEventListener("loadend", function(event) { 
+                    if (file.name.endsWith('.xlsx')){
+                        var data = event.target.result;
+                        var workbook = XLSX.read(data,{raw:true,cellDates:true});
+                        console.log(workbook)
+                        var sheet_name_list = workbook.SheetNames;
+                        if (sheet_name_list.includes("Form1")){
+                            var worksheet = workbook.Sheets["Form1"];
+                            var rows = XLSX.utils.sheet_to_json(worksheet, { });
+                            
+                            if (Object.keys(rows[0]).includes('Please confirm the date you completed the online Human Tissue module?')){
+                                parse_hta(rows)
+                            } else {
+                                parse_gcp(rows)
+                            }
+
+                        } else if (sheet_name_list.includes("Grades")){
+                            var worksheet = workbook.Sheets["Grades"];
+                            var rows = XLSX.utils.sheet_to_json(worksheet, { });
+
+                            parse_grades(rows)
+                        } else if (sheet_name_list.includes("Register")){
+                            var worksheet = workbook.Sheets["Register"];
+                            var rows = XLSX.utils.sheet_to_json(worksheet, { });
+                            parse_student_bookings(rows)
+                        }
+
+
+                    } else if (file.name.endsWith('.csv')){
+                        if (check_progress_sheet(event)){
+                            parse_progress_sheet(event.target.result)
+                        } else {
+                            df = new dfd.readCSV(file).then((df) => {
+                                if (check_staff_bookings(df)==true){
+                                    parse_staff_bookings(df)
+                                }
+                            })
+
+                        }
+                    }
+
+                });
+                if (file.name.endsWith('.xlsx')){
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    reader.readAsText(file);
+                }
+
+                
+                // console.log(reader)
+
+            }
+        };
+
+
+       
+        document.getElementById('submit').addEventListener('click', function(){
+            console.log(data)
+            lookup = {}
+            data.forEach(element => {
+                if (element.username != null){
+                    lookup[element.name] = element.username
+                }
+            });
+            console.log(lookup)
+            data.forEach(element => {
+                if (element.username == null){
+                    element.username = lookup[element.name]
+                }
+            });
+            // df = new dfd.DataFrame(data)
+            workbook = new XLSX.utils.book_new();
+            worksheet = XLSX.utils.json_to_sheet(data)
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'data');
+            console.log(workbook)
+            XLSX.writeFile(workbook, "data.xlsx");
+
+
+        })
+        
+    </script>
+</body>
+</html>
